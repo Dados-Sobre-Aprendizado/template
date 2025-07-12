@@ -1,0 +1,26 @@
+name: Python CI
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      cockroach:
+        image: cockroachdb/cockroach:v23.2.11
+        ports: ['26257:26257']
+        options: >-
+          --health-cmd="cockroach sql --insecure -e 'SHOW DATABASES'" 
+          --health-interval=5s --health-timeout=20s --health-retries=10
+        command: start-single-node --insecure
+
+    env:
+      COCKROACH_URI: postgresql://root@localhost:26257/defaultdb?sslmode=disable
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - run: psql $COCKROACH_URI -f schema.sql
+      - run: pytest --cov=src
